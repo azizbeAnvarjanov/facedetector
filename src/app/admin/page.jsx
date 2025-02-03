@@ -1,3 +1,4 @@
+"use client";
 import { useState } from "react";
 import { db, storage } from "../lib/firebase";
 import { collection, addDoc } from "firebase/firestore";
@@ -9,7 +10,8 @@ export default function Admin() {
   const [loading, setLoading] = useState(false);
 
   const handleUpload = async () => {
-    if (!name || !image) return alert("Iltimos, barcha maydonlarni to'ldiring!");
+    if (!name || !image)
+      return alert("Iltimos, barcha maydonlarni to'ldiring!");
 
     setLoading(true);
 
@@ -48,7 +50,11 @@ export default function Admin() {
         onChange={(e) => setName(e.target.value)}
         className="border p-2 rounded"
       />
-      <input type="file" accept="image/*" onChange={(e) => setImage(e.target.files[0])} />
+      <input
+        type="file"
+        accept="image/*"
+        onChange={(e) => setImage(e.target.files[0])}
+      />
       <button
         onClick={handleUpload}
         disabled={loading}
