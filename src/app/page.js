@@ -1,101 +1,134 @@
-import Image from "next/image";
+"use client";
+import { useEffect, useState, useRef } from "react";
+import * as faceapi from "face-api.js";
 
-export default function Home() {
+const employees = [
+  { id: 1, name: "a", photoURL: "/employees/employee2.jpg" },
+  { id: 2, name: "b", photoURL: "/employees/employee3.jpg" },
+  { id: 3, name: "x", photoURL: "/employees/employee4.jpg" },
+  { id: 4, name: "Azizbek Anvarjanov", photoURL: "/employees/employee5.jpg" },
+  { id: 5, name: "Gulbaxor Tursunboboyeva", photoURL: "/employees/employee6.jpg" },
+];
+
+export default function ScanPage() {
+  const [modelsLoaded, setModelsLoaded] = useState(false);
+  const [message, setMessage] = useState("");
+  const [scanning, setScanning] = useState(false);
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+
+  useEffect(() => {
+    const loadModels = async () => {
+      try {
+        await faceapi.nets.ssdMobilenetv1.loadFromUri("/models");
+        await faceapi.nets.faceLandmark68Net.loadFromUri("/models");
+        await faceapi.nets.faceRecognitionNet.loadFromUri("/models");
+        setModelsLoaded(true);
+      } catch (error) {
+        console.error("Model yuklashda xatolik:", error);
+        setMessage("Model yuklashda xatolik yuz berdi.");
+      }
+    };
+    loadModels();
+  }, []);
+
+  const startCamera = async () => {
+    try {
+      setScanning(true);
+      setMessage("Kamera ishga tushmoqda...");
+
+      const stream = await navigator.mediaDevices.getUserMedia({ video: {} });
+      streamRef.current = stream;
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+
+      setMessage("Yuzni skaner qilish...");
+    } catch (error) {
+      console.error("Kamerani ishga tushirishda xatolik:", error);
+      setMessage("Kamerani ishga tushirishda muammo bor.");
+      setScanning(false);
+    }
+  };
+
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+    }
+    setScanning(false);
+  };
+
+  const handleScan = async () => {
+    if (!videoRef.current) {
+      setMessage("Kamera yoqilmagan!");
+      return;
+    }
+
+    setMessage("Yuz aniqlanmoqda...");
+
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+
+    try {
+      const face = await faceapi
+        .detectSingleFace(videoRef.current, new faceapi.SsdMobilenetv1Options()) // ✅ Yangilandi
+        .withFaceLandmarks()
+        .withFaceDescriptor();
+
+      if (!face) {
+        setMessage("Yuz topilmadi!");
+        stopCamera();
+        return;
+      }
+
+      setMessage("Yuz aniqlandi, tekshirilmoqda...");
+
+      for (let employee of employees) {
+        const img = await faceapi.fetchImage(employee.photoURL);
+        const labeledFace = await faceapi
+          .detectSingleFace(img, new faceapi.SsdMobilenetv1Options()) // ✅ Yangilandi
+          .withFaceLandmarks()
+          .withFaceDescriptor();
+
+        if (!labeledFace) continue;
+
+        const distance = faceapi.euclideanDistance(face.descriptor, labeledFace.descriptor);
+
+        console.log(`Distance with ${employee.name}:`, distance);
+
+        if (distance < 0.5) {
+          setMessage(`Xodim topildi: ${employee.name}`);
+          stopCamera();
+          return;
+        }
+      }
+
+      setMessage("Xodim topilmadi!");
+      stopCamera();
+    } catch (error) {
+      console.error("Yuzni aniqlashda xatolik:", error);
+      setMessage("Yuzni aniqlashda xatolik yuz berdi.");
+      stopCamera();
+    }
+  };
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.js
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+    <div className="container">
+      <h1>Yuzni Skannerlash</h1>
+      {modelsLoaded ? (
+        scanning ? (
+          <div>
+            <video ref={videoRef} autoPlay width="320" height="240"></video>
+            <button onClick={handleScan}>Skaner qilish</button>
+            <button onClick={stopCamera}>Kamerani to'xtatish</button>
+          </div>
+        ) : (
+          <button onClick={startCamera}>Yuzni skaner qilish</button>
+        )
+      ) : (
+        <p>Model yuklanmoqda...</p>
+      )}
+      <p>{message}</p>
     </div>
   );
 }
