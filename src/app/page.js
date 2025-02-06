@@ -1,13 +1,19 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
 import * as faceapi from "face-api.js";
+import { db } from "@/app/firebase"; // Firebase konfiguratsiya faylini import qiling
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 
 const employees = [
   { id: 1, name: "a", photoURL: "/employees/employee2.jpg" },
   { id: 2, name: "b", photoURL: "/employees/employee3.jpg" },
   { id: 3, name: "x", photoURL: "/employees/employee4.jpg" },
   { id: 4, name: "Azizbek Anvarjanov", photoURL: "/employees/employee5.jpg" },
-  { id: 5, name: "Gulbaxor Tursunboboyeva", photoURL: "/employees/employee6.jpg" },
+  {
+    id: 5,
+    name: "Gulbaxor Tursunboboyeva",
+    photoURL: "/employees/employee6.jpg",
+  },
 ];
 
 export default function ScanPage() {
@@ -59,6 +65,18 @@ export default function ScanPage() {
     setScanning(false);
   };
 
+  const saveAttendance = async (employeeName) => {
+    try {
+      await addDoc(collection(db, "attendance"), {
+        name: employeeName,
+        timestamp: serverTimestamp(),
+      });
+      console.log(`Davomat saqlandi: ${employeeName}`);
+    } catch (error) {
+      console.error("Davomatni saqlashda xatolik:", error);
+    }
+  };
+
   const handleScan = async () => {
     if (!videoRef.current) {
       setMessage("Kamera yoqilmagan!");
@@ -71,7 +89,7 @@ export default function ScanPage() {
 
     try {
       const face = await faceapi
-        .detectSingleFace(videoRef.current, new faceapi.SsdMobilenetv1Options()) // ✅ Yangilandi
+        .detectSingleFace(videoRef.current, new faceapi.SsdMobilenetv1Options())
         .withFaceLandmarks()
         .withFaceDescriptor();
 
@@ -86,18 +104,25 @@ export default function ScanPage() {
       for (let employee of employees) {
         const img = await faceapi.fetchImage(employee.photoURL);
         const labeledFace = await faceapi
-          .detectSingleFace(img, new faceapi.SsdMobilenetv1Options()) // ✅ Yangilandi
+          .detectSingleFace(img, new faceapi.SsdMobilenetv1Options())
           .withFaceLandmarks()
           .withFaceDescriptor();
 
         if (!labeledFace) continue;
 
-        const distance = faceapi.euclideanDistance(face.descriptor, labeledFace.descriptor);
+        const distance = faceapi.euclideanDistance(
+          face.descriptor,
+          labeledFace.descriptor
+        );
 
         console.log(`Distance with ${employee.name}:`, distance);
 
         if (distance < 0.5) {
           setMessage(`Xodim topildi: ${employee.name}`);
+
+          // **Davomatni Firebase'ga saqlash**
+          await saveAttendance(employee.name);
+
           stopCamera();
           return;
         }
