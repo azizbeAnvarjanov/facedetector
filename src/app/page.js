@@ -7,7 +7,7 @@ import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 const employees = [
   { id: 1, name: "a", photoURL: "/employees/employee2.jpg" },
   { id: 2, name: "b", photoURL: "/employees/employee3.jpg" },
-  { id: 3, name: "x", photoURL: "/employees/employee4.jpg" },
+  { id: 3, name: "Nilufar quchqarova", photoURL: "/employees/employee4.jpg" },
   { id: 4, name: "Azizbek Anvarjanov", photoURL: "/employees/employee5.jpg" },
   {
     id: 5,
